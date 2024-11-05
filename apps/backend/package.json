@@ -1,0 +1,23 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build": "esbuild src/index.ts --platform=node --bundle --outdir=dist",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "tsx watch src/index.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "express": "^4.21.1",
+    "tsup": "^8.3.5"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "esbuild": "^0.24.0",
+    "esbuild-plugin-tsc": "^0.4.0",
+    "tsx": "^4.19.2"
+  }
+}
