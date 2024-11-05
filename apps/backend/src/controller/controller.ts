@@ -1,5 +1,5 @@
 import prisma from "@repo/db";
-import { json, Request, Response } from "express";
+import e, { json, Request, Response } from "express";
 import jwt from "jsonwebtoken"
 
 enum Role {
@@ -465,12 +465,42 @@ export async function createMapAdmin(req: Request, res: Response) {
     })
   }
 
+  const h = dimensions.split("x")[0]
+  const w = dimensions.split("x")[1]
 
-  
+
+  const main_map = await prisma.map.create({
+    data: {
+      width: w,
+      height: h,
+      name,
+      thumbnail,
+      mapElements: {
+        create: defaultElements.map((ele: { x: any; y: any; elementId: any; }) => ({
+          x: ele.x,
+          y: ele.y,
+          element: {
+            connect: {
+              id: ele.elementId
+            }
+          }
+        }))
+      }
+    }
+  })
+
+  res.json({
+    "message": "map created sucessfully",
+    id: main_map.id
+  })
+
+
 
 
 
 }
+
+
 
 
 

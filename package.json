@@ -19,5 +19,9 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "dependencies": {
+    "ts-node": "^10.9.2",
+    "ws": "^8.18.0"
+  }
 }
