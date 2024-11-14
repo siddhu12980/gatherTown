@@ -15,9 +15,9 @@ app.get("/", (req: Request, res: Response) => {
   });
 })
 
-app.get("/reset",resetDatabase)
+app.get("/reset", resetDatabase)
 
 
-app.use("/api/v1",appRouter)
+app.use("/api/v1", appRouter)
 
 app.listen(3005)
