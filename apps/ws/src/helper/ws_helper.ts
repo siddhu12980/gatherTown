@@ -1,9 +1,10 @@
 import prisma from "@repo/db";
-import { reduceEachLeadingCommentRange } from "typescript";
+import WebSocket from "ws";
+import { flattenDiagnosticMessageText, reduceEachLeadingCommentRange, resolveTripleslashReference } from "typescript";
 
 export interface SpaceInfo {
-  width: string
-  height: string
+  width: number
+  height: number
   //spaceElemets
   //may be add elements here  that may be good 
   //we have to store multiple elements here
@@ -18,6 +19,22 @@ export interface MyWebSOcket extends WebSocket {
   y?: number,
   userId?: string;
   spaceId?: string;
+}
+
+
+export function check_user_exists_in_Space(gameMap: Map<Space, MyWebSOcket[]>, spaceId: string, my_user_id: string) {
+  const spaceUsers = getSpace_users(spaceId, gameMap)
+  if (!spaceUsers) {
+    console.log("Nonone in this Space")
+    return false
+  }
+  const exists = spaceUsers.some((socket) => {
+    return socket.userId === my_user_id
+  })
+  if (!exists) {
+    return false
+  }
+  return true
 }
 
 export function doesSpaceExist(spaceId: string, gameMap: Map<Space, MyWebSOcket[]>): boolean {
@@ -94,9 +111,6 @@ export async function get_Space_details(space_id: string) {
   }
 
 }
-
-
-
 
 export function getSpace(spaceId: string, gameMap: Map<Space, MyWebSOcket[]>): Space | null {
   for (const space of gameMap.keys()) {

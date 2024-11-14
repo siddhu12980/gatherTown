@@ -1,17 +1,25 @@
 import WebSocket from 'ws';
 import jwt from "jsonwebtoken"
 import prisma from "@repo/db"
-import { deleteSpace, doesSpaceExist, getSpace_users, MyWebSOcket, setSpaceUsers, Space } from './helper/ws_helper';
+import { SpaceInfo } from './helper/ws_helper';
 
 const wss = new WebSocket.Server({ port: 8081 });
-let gameMap = new Map<Space, MyWebSOcket[]>()
+let gameMap = new Map<string, MyWebSOcket[]>()
+let spaceMap = new Map<string, SpaceInfo>
 
-
+interface MyWebSOcket extends WebSocket {
+  x?: number,
+  y?: number,
+  userId?: string;
+  spaceId?: string;
+}
 
 async function check_size(spaceId: string) {
   const space_details = await prisma.space.findFirst({
     where: {
       id: spaceId
+    }, include: {
+      elements: true
     }
   })
   if (!space_details) {
@@ -39,10 +47,13 @@ async function handleMove(data: { x: any; y: any; }, ws: MyWebSOcket) {
   const space_id = ws.spaceId
 
   if (ws.x == undefined || ws.y == undefined) {
+
     const res = JSON.stringify({
       "type": "Ws dont have position"
     })
-    return ws.send(res)
+    ws.send(res)
+    //handle conneciton remove and remove user 
+    return ws.close()
   }
 
   if (!space_id) {
@@ -50,7 +61,19 @@ async function handleMove(data: { x: any; y: any; }, ws: MyWebSOcket) {
       "type": "Token not Found"
     })
     return ws.send(res)
+    //conlse conn and handle conn
   }
+
+  if (!isWithinWall(current_x, current_y, space_id)) {
+    return ws.send(JSON.stringify({
+      "type": "movement-rejected",
+      "payload": {
+        x: ws.x,
+        y: ws.y
+      }
+    }));
+  }
+
 
   if (!isValidMove(current_x, current_y, ws.x, ws.y)) {
     return ws.send(JSON.stringify({
@@ -83,12 +106,12 @@ async function handleMove(data: { x: any; y: any; }, ws: MyWebSOcket) {
 
   }
 
-  const space_users = getSpace_users(ws.spaceId!, gameMap)
-
+  const space_users = gameMap.get(ws.spaceId!)
   if (!space_users) {
     return
   }
 
+  // a user exists at that position
   const exists = space_users.some(ws => ws.x === current_x && ws.y === current_y);
 
 
@@ -101,6 +124,7 @@ async function handleMove(data: { x: any; y: any; }, ws: MyWebSOcket) {
       }
     }))
   }
+
 
 
   ws.x = current_x
@@ -131,6 +155,21 @@ async function handleMove(data: { x: any; y: any; }, ws: MyWebSOcket) {
 }
 
 
+function isWithinWall(next_x: number, next_y: number, spaceId: string) {
+
+  const space = spaceMap.get(spaceId)
+
+  if (!space) {
+    return
+  }
+
+  const wall_x = space.width
+  const wall_y = space.height
+
+  return (next_x < wall_x) && (next_y < wall_y);
+}
+
+
 
 function isValidMove(current_x: number, current_y: number, previous_x: number, previous_y: number) {
   const x_distance = Math.abs(current_x - previous_x);
@@ -155,21 +194,24 @@ async function handleLeave(ws: MyWebSOcket) {
     },
   });
 
-  if (doesSpaceExist(ws.spaceId, gameMap)) {
-    const space_users = getSpace_users(ws.spaceId, gameMap)
+  if (gameMap.has(ws.spaceId)) {
+    const space_users = gameMap.get(ws.spaceId);
+
     if (space_users) {
       const new_array = space_users.filter((sockets) => sockets.userId !== ws.userId);
 
       if (new_array.length > 0) {
-        setSpaceUsers(ws.spaceId, gameMap, new_array)
+        gameMap.set(ws.spaceId, new_array);
       } else {
-        deleteSpace(ws.spaceId, gameMap)
+        gameMap.delete(ws.spaceId);
       }
+
       broadcastMessage(server_ans, ws.spaceId, ws)
     }
   } else {
     console.log("No such Rooms")
   }
+
   ws.send(server_ans);
 }
 
@@ -207,16 +249,16 @@ async function handleJoin(data: { spaceId: string; token: string }, ws: MyWebSOc
     throw new Error("Invalid token payload: missing user id");
   }
 
-
-  if (doesSpaceExist(spaceId, gameMap)) {
-    const space = get_Space_details(spaceId)
-    gameMap.set(space, [])
+  if (!gameMap.has(spaceId)) {
+    gameMap.set(spaceId, []);
+    const space_details = await check_size(spaceId)
+    spaceMap.set(spaceId, space_details)
+    console.log("Space Detail Saved", space_details)
   }
-  const spaceUsers = gameMap.get(spaceId);
 
+  const spaceUsers = gameMap.get(spaceId);
   if (!spaceUsers) {
     console.log("gffffffffffffffffffffffffffff")
-
     const res = JSON.stringify({
       "type": "Invalid Token"
     })
@@ -230,18 +272,14 @@ async function handleJoin(data: { spaceId: string; token: string }, ws: MyWebSOc
   })
 
   if (exists) {
-
     const res = JSON.stringify({
-      "type": "user Already  in Game"
+      "type": "user Already  in Game connecting...."
     })
-
     ws.send(res)
 
     await broadcastMessage(res, spaceId, ws)
 
   } else {
-
-
 
     ws.userId = userFromToken.id
     ws.x = 0

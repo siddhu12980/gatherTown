@@ -27,6 +27,8 @@ export async function signupUser(req: Request, res: Response): Promise<any> {
         message: "Missing Required Fields",
       });
     }
+
+    console.log("INout Signup Data:")
     console.log(data)
 
     const find_user = await prisma.user.findUnique({
@@ -45,7 +47,7 @@ export async function signupUser(req: Request, res: Response): Promise<any> {
       data: {
         username: data.username,
         password: data.password,
-        role: data.type === "admin" ? "Admin" : "User",
+        role: data.type == "admin" ? "Admin" : "User",
       },
     });
 
